@@ -1,9 +1,195 @@
-<style>
-    textarea:focus {
-  outline: none;
-  border: 2px solid blue;
-}
-</style>
-<textarea style="width: 1000px; height:800px; border-color: green;"></textarea>
-<br><br><button style="margin-left: 300px; cursor: pointer;background-color: green;color: white;">转换</button>
-<button style="margin-left: 100px; cursor: pointer;background-color: green;color: white; margin-left: 100px;">清空</button>
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON和XML格式化</title>
+    <style>
+        .element {
+            color: blue; /* 元素标签颜色 */
+            font-weight: bold;
+        }
+        .text {
+            color: green; /* 文本内容颜色 */
+        }
+        .key {
+            color: darkorange; /* JSON键的颜色 */
+        }
+        .string {
+            color: green; /* JSON字符串的颜色 */
+        }
+        .number {
+            color: red; /* JSON数字的颜色 */
+        }
+        .boolean {
+            color: violet; /* JSON布尔值的颜色 */
+        }
+        .null {
+            color: gray; /* JSON null的颜色 */
+        }
+        .xml-output {
+            border: 2px solid #076426;
+            padding: 10px;
+            white-space: pre-wrap; /* 保留空格和换行 */
+            font-family: monospace; /* 等宽字体 */
+            height: 900px; /* 高度 */
+            overflow: auto; /* 可滚动 */
+            outline: none; /* 去掉默认边框 */
+            width: 1000px; /* 宽度 */
+            
+           
+        }
+    </style>
+</head>
+<body>
+
+<div contenteditable="true" class="xml-output" id="textArea"></div>
+<div style="width: 1000px; text-align: center;">
+<button onclick="jsonOperate()" style=" cursor: pointer; background-color: green; color: white;">json格式化</button>
+<button onclick="xmlOperate()" style="margin-left: 100px; cursor: pointer; background-color: green; color: white;">xml格式化</button>
+<button onclick="clearTextArea()" style="margin-left: 100px; cursor: pointer; background-color: chocolate; color: white;">清空</button>
+</div>
+<script lang="typescript">
+    function jsonOperate() {
+        const jsonString = document.getElementById('textArea').innerText; // 使用 innerText 读取内容
+
+        try {
+            const formattedJson = formatJson(jsonString);
+            document.getElementById('textArea').innerHTML = formattedJson; // 将格式化后的结果放回 div
+        } catch (error) {
+            alert(error.message);
+        }
+    }
+
+    function xmlOperate() {
+        const xmlString = document.getElementById('textArea').innerText; // 使用 innerText 读取内容
+        const formattedString = formatXml(xmlString);
+        
+        if (formattedString) {
+            document.getElementById('textArea').innerHTML = formattedString; // 将格式化后的结果放回 div
+        }
+    }
+
+    function clearTextArea() {
+        document.getElementById('textArea').innerHTML = ''; // 清空 div
+    }
+
+    function formatJson(jsonString) {
+        const jsonObject = JSON.parse(jsonString); // 解析 JSON
+        const jsonStringFormat = JSON.stringify(jsonObject, null, 4); // 格式化 JSON
+
+        // 使用正则表达式为JSON添加颜色
+        return decodeURIComponent(jsonStringFormat
+            //.replace(/"([^"]+)":/g, '"<span class="key">$1</span>": ') // 处理键
+            .replace(/"([^"]*)"/g, '<span class="string">"$1"</span>') // 处理字符串
+            .replace(/:\s*([\d]+)/g, ': <span class="number">$1</span>') // 处理数字
+            .replace(/:\s*(true|false)/g, ': <span class="boolean">$1</span>') // 处理布尔值
+            .replace(/:\s*(null)/g, ': <span class="null">$1</span>')); // 处理null
+    }
+
+    function formatXml(xmlString) {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
+
+        // 检查是否解析成功
+        if (xmlDoc.getElementsByTagName('parsererror').length) {
+            alert('无效的 XML 格式');
+            return; // 返回 undefined
+        }
+
+        // 递归格式化 XML 文档并添加颜色区分
+        const formatNode = (node, level) => {
+            let result = '';
+            const indent = '    '.repeat(level); // 定义缩进
+            
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                result += `${indent}<span class="element">&lt;${node.nodeName}&gt;</span>`; // 元素开始标签
+                if (node.childNodes.length) {
+                    result += '\n'; // 换行
+                    node.childNodes.forEach(child => {
+                        let childResult = formatNode(child, level + 1); // 处理子节点
+                        if(childResult.startsWith('<span class="text">')){
+                          result=result.trimEnd('\n');
+                        }
+                        result += childResult; // 处理子节点
+                    });
+                    if(result.endsWith('&gt;</span>')||result.endsWith('\n')){
+                      result += `${indent}<span class="element">&lt;/${node.nodeName}&gt;</span>`; // 元素结束标签
+                    }
+                    else{
+                      result += `<span class="element">&lt;/${node.nodeName}&gt;</span>`; // 文本之后的结束结束标签，不缩进，不换行
+                    }
+                    
+                } else {
+                    result += `<span class="element">${indent}&lt;/${node.nodeName}&gt;</span>`; // 自闭合标签
+                }
+                if(result.endsWith('&gt;</span>')){
+                  result += '\n'; // 在每个元素后添加换行，避免空行
+                }
+            } else if (node.nodeType === Node.TEXT_NODE) {
+                const textValue = node.nodeValue.trim();
+                
+                
+                
+                if (textValue) {
+                    result += `<span class="text">${textValue}</span>`; // 文本节点
+                   
+                }
+            }
+            return result;
+        };
+
+        let formattedXml = '';
+        Array.from(xmlDoc.childNodes).forEach(child => {
+            formattedXml += formatNode(child, 0);
+        });
+
+        return decodeURIComponent(formattedXml.trim()); // 返回格式化后的 XML 字符串
+    }
+    function formatNewXml(xmlString) {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
+
+        // 检查是否解析成功
+        if (xmlDoc.getElementsByTagName('parsererror').length) {
+            alert('无效的 XML 格式');
+            return; // 返回 undefined
+        }
+
+        // 递归格式化 XML 文档并添加颜色区分
+        const formatNode = (node, level) => {
+            let result = '';
+            const indent = '    '.repeat(level); // 定义缩进
+            
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                result += `${indent}<span class="element">&lt;${node.nodeName}&gt;</span>`; // 元素开始标签
+                if (node.childNodes.length) {
+                    result += '\n'; // 换行
+                    node.childNodes.forEach(child => {
+                        result += formatNode(child, level + 1); // 处理子节点
+                    });
+                    result += `${indent}<span class="element">&lt;/${node.nodeName}&gt;</span>`; // 元素结束标签
+                } else {
+                    result += `<span class="element">${indent}&lt;/${node.nodeName}&gt;</span>`; // 自闭合标签
+                }
+                result += '\n'; // 在每个元素后添加换行，避免空行
+            } else if (node.nodeType === Node.TEXT_NODE) {
+                const textValue = node.nodeValue.trim();
+                if (textValue) {
+                    result += `${indent}<span class="text">${textValue}</span>\n`; // 文本节点
+                }
+            }
+            return result;
+        };
+
+        let formattedXml = '';
+        Array.from(xmlDoc.childNodes).forEach(child => {
+            formattedXml += formatNode(child, 0);
+        });
+
+        return decodeURIComponent(formattedXml.trim()); // 返回格式化后的 XML 字符串
+    }
+</script>
+
+</body>
+</html>
